@@ -1,0 +1,7 @@
+{
+  "old_marginals": [{"residue": 0, "step": 1}, {"residue": 0, "step": 1}],
+  "old_joint": [false, true],
+  "new_joint": true,
+  "offline_joint": false,
+  "revision": "1"
+}
