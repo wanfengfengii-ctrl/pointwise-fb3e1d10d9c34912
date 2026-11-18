@@ -50,3 +50,22 @@ assert open_bundle(package).report == saved
 `assess` 返回含 `report_id`、`reachable` 和 `jointly_reachable` 的 `Assessment`。范围保持输入位置，并编码为整数单值或 `{'residue': r, 'step': p}`，其中 `p > 0` 且 `0 <= r < p`。联合为假的正常报告同样保存。`read` 区分 `ArtifactNotFound` 和 `ArtifactTypeMismatch`，返回带精确身份、父号及原载荷字节的 `ArtifactEnvelope`。`.data` 解析已存载荷。SQLite 写错误保留原异常，提交前失败回滚整个发布。
 
 `export` 按报告号返回可直接保存的包字节。父链缺件会拒绝导出。`open_bundle` 仅消费包字节，返回原报告、标定号和精确证据引用。坏格式、缺件、摘要或父链错配统一报 `InvalidBundle`。包清单核对内容完整性及成员一致性。
+
+## 双工位离线复核
+
+两台离线工位针对同一次固定复核请求各自填报一侧通道，在线质控员再选择明确的左右版本定稿。接口沿用整数排除布尔、非法输入抛 `ValueError` 的既有口径。
+
+`review.reports.create_review(db, calibration_id, expressions)` 登记一个独立请求，返回 `request_id`、`calibration_id` 与有序左右表达式（省去零系数）。请求复制输入并固定该标定与表达式，修改返回值不影响已登记内容；标定不存在沿用 `read` 的 `ArtifactNotFound`。
+
+`handoff.offline.make_submission(request, side, version, claim)` 与 `make_withdrawal(request, side, version)` 在离线端生成 UTF-8 JSON 字节，公共字段为 `kind`、`request`、`side`、`version`，`submit` 另带整数 `claim`。`receive(db, message)` 先核对请求存在且标定号、有序表达式与原请求一致，再按 `(请求, 侧别, 正整数版本)` 记账：
+
+- 资格（返回的 `eligible`）表示该键已有原件且从未撤回。同键同值重送无副作用并返回当前资格；同键异值或任何非法消息整次拒绝、不改账。
+- 撤回只作用于所指的键，可先于原件或重复送达。迟到原件的首值仍登记供冲突核对，但资格持续为假；同册其余版本各自保留资格。
+
+`review.reports.finalize(db, request_id, left_version, right_version)` 的裁决与回执交接约定如下：
+
+- 同一请求内左右版本对分别定稿。首次定稿要求两侧都有未撤回的原件，沿请求固定的标定和表达式、按原 `assess` 规则出联合报告（真假都发布），报告仍为 `ArtifactKind.REPORT`、父号为标定号，载荷格式不变。
+- 报告与版本对回执在同一事务提交；支持与 V1 同形状的 `before_commit(db, report_id)`，钩子或写入失败时报告与回执一并回滚，原申报可重试。
+- 同一版本对再次定稿直接返回原回执，即使其间发生撤回；不同版本对独立定稿。用 `read(db, ArtifactKind.REPORT, report_id)` 读取结论与父号，更正证据、发布新标定或关闭重开数据库后，旧请求与旧报告仍由原标定和版本对确定。
+
+运行 `python3 -B -S -m demo` 可在真实 SQLite 库中查看乱序送达、撤回、冲突拒绝与重开后定稿的实际报告和回执。

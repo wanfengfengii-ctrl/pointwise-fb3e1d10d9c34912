@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from archive.database import write_transaction
 from evidence.storage import install_evidence_schema
+from review.storage import install_review_schema
 
 
 class ArtifactKind(StrEnum):
@@ -13,6 +14,7 @@ class ArtifactKind(StrEnum):
 def initialize_store(connection):
     with write_transaction(connection):
         install_evidence_schema(connection)
+        install_review_schema(connection)
         connection.execute('''
             CREATE TABLE IF NOT EXISTS artifacts (
                 id TEXT PRIMARY KEY NOT NULL,

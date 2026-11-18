@@ -17,6 +17,13 @@ def require_integer(value, label):
     return value
 
 
+def require_positive_integer(value, label):
+    value = require_integer(value, label)
+    if value <= 0:
+        raise ValueError(f'{label} must be a positive integer')
+    return value
+
+
 def normalize_coordinates(names):
     if type(names) not in (tuple, list) or not 1 <= len(names) <= 8:
         raise ValueError('a batch needs one to eight ordered coordinates')

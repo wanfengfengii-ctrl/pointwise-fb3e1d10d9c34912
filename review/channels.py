@@ -9,12 +9,17 @@ class ChannelClaim:
     claimed: int
 
 
-def compile_channel_pair(frame, expressions, claims):
+def compile_expressions(frame, expressions):
     if type(expressions) not in (list, tuple) or len(expressions) != 2:
-        raise ValueError('report requires exactly two ordered expressions')
+        raise ValueError('review requires exactly two ordered expressions')
+    return tuple(compile_coefficients(frame, expression) for expression in expressions)
+
+
+def compile_channel_pair(frame, expressions, claims):
     if type(claims) not in (list, tuple) or len(claims) != 2:
         raise ValueError('report requires exactly two ordered integer claims')
+    compiled = compile_expressions(frame, expressions)
     return tuple(
-        ChannelClaim(compile_coefficients(frame, expression), require_integer(claim, 'claim'))
-        for expression, claim in zip(expressions, claims, strict=True)
+        ChannelClaim(coefficients, require_integer(claim, 'claim'))
+        for coefficients, claim in zip(compiled, claims, strict=True)
     )

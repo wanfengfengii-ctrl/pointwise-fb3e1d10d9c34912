@@ -6,6 +6,7 @@ from archive.database import open_database
 from calibration.admission import calibrate
 from evidence.batches import Batch
 from evidence.revisions import record
+from handoff.offline import make_submission, make_withdrawal, receive
 from review.reports import assess
 
 
@@ -32,6 +33,22 @@ def seed_calibration(db, modulus=2, revision="1"):
     observations = [{"coefficients": {"x": 1, "y": 1}, "rhs": 0, "modulus": modulus}]
     ref = record(db, batch, "bench", revision, observations)
     return calibrate(db, batch.batch_id, [ref])
+
+
+def replay(db, request, order):
+    """Feed (kind, side, version, claim) rows in the listed arrival order.
+
+    Withdrawal rows carry None in the claim slot. A conflicting final row raises
+    ValueError, matching the wholesale rejection rule for illegal messages.
+    """
+    results = []
+    for kind, side, version, claim in order:
+        if kind == "submit":
+            message = make_submission(request, side, version, claim)
+        else:
+            message = make_withdrawal(request, side, version)
+        results.append(receive(db, message))
+    return results
 
 
 def main():
